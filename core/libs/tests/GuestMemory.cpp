@@ -3141,6 +3141,39 @@ static void CheckDirectMemoryWriteWatchSeesWritesThroughAliases() {
     Require(sceKernelReleaseDirectMemory(phys, page * 2) == 0);
 }
 
+static void CheckDirectMemoryWriteWatchDropsAliasOnRemap() {
+    if (!GuestWriteWatch::GuestWriteWatchAvailable_nid_postfix()) {
+        std::puts("write watch unavailable: direct memory alias remap not tested");
+        return;
+    }
+    constexpr std::size_t page = 0x4000;
+    constexpr std::size_t small = 4096;
+    std::int64_t phys = 0;
+    Require(sceKernelAllocateDirectMemory(0, 0x7fffffffffll, page * 2, 0, 0, &phys) == 0);
+    void* first = nullptr;
+    Require(sceKernelMapDirectMemory(&first, page, 3, 0, phys, 0) == 0);
+    void* second = nullptr;
+    Require(sceKernelMapDirectMemory(&second, page, 3, 0, phys, 0) == 0);
+    static_cast<void>(CollectPages(first, 0, page));
+    Require(CollectPages(second, 0, page).empty());
+    static_cast<volatile unsigned char*>(second)[small] = 4;
+    Require(CollectPages(first, 0, page) == PagesOf({{first, small}, {second, small}}));
+    void* remapped = second;
+    Require(sceKernelMapDirectMemory(&remapped, page, 3, 0x10, phys + page, 0) == 0 && remapped == second);
+    Require(GuestWriteWatch::GuestWriteWatchCovers_nid_postfix(reinterpret_cast<std::uintptr_t>(second), page));
+    Require(CollectPages(first, 0, page).empty());
+    Require(CollectPages(second, 0, page) == PagesOfRange(second, 0, page));
+    static_cast<volatile unsigned char*>(first)[small * 2] = 5;
+    Require(CollectPages(first, 0, page) == PagesOf({{first, small * 2}}));
+    Require(CollectPages(second, 0, page).empty());
+    static_cast<volatile unsigned char*>(second)[small * 3] = 6;
+    Require(CollectPages(first, 0, page).empty());
+    Require(CollectPages(second, 0, page) == PagesOf({{second, small * 3}}));
+    Require(sceKernelMunmap(reinterpret_cast<std::uint64_t>(second), page) == 0);
+    Require(sceKernelMunmap(reinterpret_cast<std::uint64_t>(first), page) == 0);
+    Require(sceKernelReleaseDirectMemory(phys, page * 2) == 0);
+}
+
 static double MapAcrossBackingsSeconds(std::int64_t phys, std::size_t backings) {
     constexpr std::size_t page = 0x4000;
     const auto threadSeconds = [] {
@@ -3873,6 +3906,7 @@ int main(int argc, char** argv) {
     CheckDirectMemoryWriteWatch();
     CheckDirectMemoryWriteWatchFollowsRemovedMappings();
     CheckDirectMemoryWriteWatchSeesWritesThroughAliases();
+    CheckDirectMemoryWriteWatchDropsAliasOnRemap();
     CheckMappingCostFollowsTheMappingCount();
     CheckDirectMemoryBackingNeedsNoFilesystem();
     CheckDirectMemorySharedBacking();
