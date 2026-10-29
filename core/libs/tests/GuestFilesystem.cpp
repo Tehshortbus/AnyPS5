@@ -1131,6 +1131,10 @@ int main() {
         Require(checkRelativeLink(fileLink, 11));
         Require(checkRelativeLink(directoryLink, 16));
         Require(checkRelativeLink(danglingLink, 11));
+        const auto movedLink = root / "moved-dangling-link";
+        Require(rename_nid_postfix(danglingLink.string().c_str(), movedLink.string().c_str()) == 0 && checkRelativeLink(movedLink, 11));
+        Require(!std::filesystem::exists(root / "missing.txt"));
+        Require(rename_nid_postfix(movedLink.string().c_str(), danglingLink.string().c_str()) == 0 && checkRelativeLink(danglingLink, 11));
         const auto belowStatLoop = statLoop.string() + "\\inside";
         Require(sceKernelUnlink(belowStatLoop.c_str()) == static_cast<int>(0x8002003eu));
         Require(unlink_nid_postfix(belowStatLoop.c_str()) == -1 && *__error_nid_postfix() == 62);
