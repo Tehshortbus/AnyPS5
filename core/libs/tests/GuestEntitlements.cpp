@@ -11,8 +11,58 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 static void Require(bool value) { if (!value) std::abort(); }
+
+static std::string CaptureStderr(void (*body)()) {
+    std::fflush(stderr);
+    std::FILE* file = std::tmpfile();
+    Require(file != nullptr);
+#ifdef _WIN32
+    const int saved = _dup(_fileno(stderr));
+    _dup2(_fileno(file), _fileno(stderr));
+#else
+    const int saved = dup(fileno(stderr));
+    dup2(fileno(file), fileno(stderr));
+#endif
+    body();
+    std::fflush(stderr);
+#ifdef _WIN32
+    _dup2(saved, _fileno(stderr));
+    _close(saved);
+#else
+    dup2(saved, fileno(stderr));
+    close(saved);
+#endif
+    std::rewind(file);
+    std::string text;
+    char buffer[4096];
+    for (std::size_t read = 0; (read = std::fread(buffer, 1, sizeof(buffer), file)) != 0;) text.append(buffer, read);
+    std::fclose(file);
+    return text;
+}
+
+static void QueryUnlistedTwiceAndListedOnce() {
+    NpEntitlementAccessAddcontEntitlementInfo info{};
+    NpUnifiedEntitlementLabel unlisted{};
+    std::memcpy(unlisted.data, "UNLISTEDADDON", 13);
+    Require(sceNpEntitlementAccessGetAddcontEntitlementInfo(0, &unlisted, &info) == static_cast<int>(0x80558007));
+    Require(sceNpEntitlementAccessGetAddcontEntitlementInfo(0, &unlisted, &info) == static_cast<int>(0x80558007));
+    NpUnifiedEntitlementLabel listed{};
+    std::memcpy(listed.data, "SECONDADDON", 11);
+    Require(sceNpEntitlementAccessGetAddcontEntitlementInfo(0, &listed, &info) == 0);
+}
+
+static std::size_t Occurrences(const std::string& text, std::string_view needle) {
+    std::size_t count = 0;
+    for (auto at = text.find(needle); at != std::string::npos; at = text.find(needle, at + needle.size())) ++count;
+    return count;
+}
 
 static void SetEntitlements(const std::filesystem::path& file) {
 #ifdef _WIN32
@@ -68,6 +118,10 @@ int main(int argc, char** argv) {
     NpEntitlementAccessAddcontEntitlementInfo info{};
     Require(sceNpEntitlementAccessGetAddcontEntitlementInfo(0, &label, &info) == 0);
     Require(std::strcmp(info.entitlement_label.data, "SECONDADDON") == 0 && info.package_type == 3 && info.download_status == 4);
+    const auto log = CaptureStderr(QueryUnlistedTwiceAndListedOnce);
+    Require(Occurrences(log, "[entitlements] the title asked for the add-on UNLISTEDADDON, which ") == 1);
+    Require(log.find(file.filename().string() + " does not list, so it is reported as not installed\n") != std::string::npos);
+    Require(Occurrences(log, "[entitlements]") == 1);
     std::filesystem::remove_all(root);
     std::puts("Guest entitlements passed");
     return 0;

@@ -4,10 +4,13 @@
 #include "SceTypes.hpp"
 #include "prx/libc/include/General.hpp"
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -91,6 +94,11 @@ int APS5_VABI sceNpEntitlementAccessGetAddcontEntitlementInfo(uint32_t service_l
             return 0;
         }
     }
+    const std::string label(entitlement_label->data, strnlen(entitlement_label->data, sizeof(entitlement_label->data)));
+    static std::mutex reportMutex;
+    static std::set<std::string> reported;
+    std::lock_guard lock(reportMutex);
+    if (reported.insert(label).second) std::fprintf(stderr, "[entitlements] the title asked for the add-on %s, which %s does not list, so it is reported as not installed\n", label.c_str(), EntitlementsPath().string().c_str());
     return SCE_NP_ENTITLEMENT_ACCESS_ERROR_NOT_FOUND;
 }
 
