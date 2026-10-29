@@ -75,7 +75,10 @@ def cache_signature():
 def load_cache(path, signature):
     if not path.exists():
         return {}
-    data = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except RecursionError as error:
+        raise ValueError(f"{path}: history cache JSON is too deeply nested") from error
     if not isinstance(data, dict) or type(data.get("schema_version")) is not int or data["schema_version"] != 1 or not isinstance(data.get("rules"), str) or not isinstance(data.get("commits"), dict):
         raise ValueError(f"{path}: invalid history cache")
     if data["rules"] != signature:
