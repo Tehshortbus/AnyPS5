@@ -58,6 +58,27 @@ static void QueryUnlistedTwiceAndListedOnce() {
     Require(sceNpEntitlementAccessGetAddcontEntitlementInfo(0, &listed, &info) == 0);
 }
 
+static void QueryUnlisted(const char* text, std::size_t length) {
+    NpEntitlementAccessAddcontEntitlementInfo info{};
+    NpUnifiedEntitlementLabel label{};
+    std::memcpy(label.data, text, length);
+    Require(sceNpEntitlementAccessGetAddcontEntitlementInfo(0, &label, &info) == static_cast<int>(0x80558007));
+}
+
+static void QueryUnprintable() {
+    QueryUnlisted("BAD\nNAME\x1b[1m", 13);
+    QueryUnlisted("SLASH\\ADDON", 11);
+}
+
+static void QueryPastTheLimit() {
+    for (int i = 0; i < 70; ++i) {
+        char text[17]{};
+        std::snprintf(text, sizeof(text), "CAPADDON%02d", i);
+        QueryUnlisted(text, std::strlen(text));
+    }
+    QueryUnlisted("UNLISTEDADDON", 13);
+}
+
 static std::size_t Occurrences(const std::string& text, std::string_view needle) {
     std::size_t count = 0;
     for (auto at = text.find(needle); at != std::string::npos; at = text.find(needle, at + needle.size())) ++count;
@@ -122,6 +143,14 @@ int main(int argc, char** argv) {
     Require(Occurrences(log, "[entitlements] the title asked for the add-on UNLISTEDADDON, which ") == 1);
     Require(log.find(file.filename().string() + " does not list, so it is reported as not installed\n") != std::string::npos);
     Require(Occurrences(log, "[entitlements]") == 1);
+    const auto escaped = CaptureStderr(QueryUnprintable);
+    Require(escaped.find("the add-on BAD\\x0aNAME\\x1b[1m, which ") != std::string::npos);
+    Require(escaped.find("the add-on SLASH\\x5cADDON, which ") != std::string::npos);
+    Require(Occurrences(escaped, "\n") == 2 && escaped.find('\x1b') == std::string::npos);
+    const auto capped = CaptureStderr(QueryPastTheLimit);
+    Require(Occurrences(capped, "the add-on CAPADDON") == 61);
+    Require(Occurrences(capped, "[entitlements] the title asked for more than 64 add-ons that ") == 1);
+    Require(Occurrences(capped, "[entitlements]") == 62);
     std::filesystem::remove_all(root);
     std::puts("Guest entitlements passed");
     return 0;
