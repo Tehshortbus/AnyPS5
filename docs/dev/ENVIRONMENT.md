@@ -78,6 +78,7 @@ The code reads environment names through `getenv`, `IsEnvironmentSet`, `kibSetti
 | Name | Kind | Source | Default | Description |
 |------|------|--------|---------|-------------|
 | `ANYPS5_GPU` | string | `core/libs/prx/libSceAgcDriver/Execution/src/VulkanDevice.cpp` |  | restricts physical device selection to device names containing this case-insensitive substring |
+| `ANYPS5_HOST_REPORT` | string | `core/libs/prx/libSceAgcDriver/Execution/src/VulkanDevice.cpp` | 0 | prints the host report to stderr once when the presenting device is chosen: 1 prints it; 0, empty or unset prints nothing, and any other value stops the start with an error naming the variable |
 | `ANYPS5_OVERLAY` | string | `core/libs/prx/libSceAgcDriver/Execution/src/PerformanceOverlay.cpp` | 0 | the performance overlay's page at start: 1 the overlay, 2 its detailed page; 0 or unset hides it, and any other value is refused |
 | `ANYPS5_OVERLAY_POS` | string | `core/libs/prx/libSceAgcDriver/Execution/src/PerformanceOverlay.cpp` | tl | the overlay's corner: tl, tr, bl or br |
 | `ANYPS5_PRESENT_MODE` | string | `core/libs/prx/libSceAgcDriver/Execution/src/VulkanDevice.cpp` | fifo | selects the swapchain present mode: fifo, fifo_latest_ready, mailbox or immediate |
@@ -294,6 +295,7 @@ The code reads environment names through `getenv`, `IsEnvironmentSet`, `kibSetti
 | `APS5_NO_LEASE_MIRROR` | presence | `core/libs/prx/libSceAgcDriver/Graphics/src/GuestBufferMemory.cpp` |  | restores copies instead of image mirrors for address-based builds |
 | `APS5_NO_LIBRARY_PREBUILD` | presence | `core/libs/prx/libSceAgcDriver/Execution/src/Driver/Shaders/ShaderRegistry.cpp` |  | disables prebuilding registration-form shader libraries (only 1 disables it) |
 | `APS5_NO_LOCK_PROFILE` | presence | `core/libs/prx/libSceAgcDriver/Execution/src/GuestMemory.cpp` |  | turns off GpuMutex wait profiling under APS5_PROFILE_DRAW |
+| `APS5_NO_MESH_WINDOW_BUFFER` | presence | `core/libs/prx/libSceAgcDriver/Execution/src/VulkanDevice.cpp` |  | keeps a mesh program's relative-addressing window in function arrays on NVIDIA's proprietary driver instead of moving it to a storage buffer |
 | `APS5_NO_MOVED_BUFFER_TEMPLATES` | presence | `core/libs/prx/libSceAgcDriver/Graphics/src/Draw.cpp` |  | keys the full descriptor words of read-only guest buffers instead of allowing a hit when they move |
 | `APS5_NO_OBSERVATION_GUARD` | presence | `core/libs/prx/libSceAgcDriver/Execution/src/Driver/Memory/WriteEvidence.cpp` |  | observes every validated range, not only the ranges whose flush hook waited |
 | `APS5_NO_OPPORTUNISTIC_REAP` | presence | `core/libs/prx/libSceAgcDriver/Execution/src/VulkanDevice.cpp` |  | skips retiring already-finished batches before a submit |
@@ -585,6 +587,7 @@ The code reads environment names through `getenv`, `IsEnvironmentSet`, `kibSetti
 
 | Name | Kind | Source | Default | Description |
 |------|------|--------|---------|-------------|
+| `ANYPS5_LOG_FILE` | string | `core/libs/prx/libc/src/LogFilePlatform.cpp` |  | path of a file that also receives everything the converted executable writes to standard output and standard error, appended line by line, while the terminal output goes on; relative paths resolve against the working directory; an empty value is the same as unset; a file that cannot be opened stops the executable at load with status 1 and an error naming the variable, the path and the operating system error |
 | `APS5_CRASH_INDIRECT_MEMORY` | presence | `core/libs/prx/libc/src/specifics/windows/CrashReport.cpp` |  | adds to the Windows crash report up to 64 bytes from each pointer in the dump of the words the registers point at, as `[[reg+off]] @addr` lines; off when unset or empty |
 | `APS5_CRASH_STACK_BYTES` | integer | `core/libs/prx/libc/src/specifics/windows/CrashReport.cpp` | 0 | bytes of the faulting thread's stack from rsp, decimal or 0x hexadecimal and at most 1048576, that the Windows crash report prints with the data at the stack words pointing outside the stack; 0 prints none |
 | `APS5_HANG_DUMP_SECS` | integer | `core/libs/prx/libc/src/specifics/windows/CrashReport.cpp` |  | on Windows, whole seconds after which a watchdog dumps all threads and aborts; 0 or a value that is not a decimal number is ignored |
@@ -610,6 +613,7 @@ The code reads environment names through `getenv`, `IsEnvironmentSet`, `kibSetti
 |------|------|--------|---------|-------------|
 | `ANYPS5_LOADEXEC_ARGV_SKIP` | string | `core/libs/prx/libkernel/System/src/Process.cpp` |  | on Windows, set to `1` to drop the first process argument and clear the variable |
 | `APS5_COARSE_TIMED_WAITS` | presence | `core/libs/prx/libkernel/Time/TimedWait.cpp` |  | on Windows, rounds timed waits up to the scheduler tick |
+| `APS5_GAME_MODE` | string | `core/libs/prx/libkernel/System/src/HostPerformanceProcess.cpp` | off | asks the host for its game or performance mode while the title runs, read when libkernel loads: `off`, `on` or `auto`; on Linux it requests Feral GameMode (`libgamemode.so.0`, loaded with dlopen) and on macOS it holds a user-initiated, latency-critical `NSProcessInfo` activity; `on` logs a missing library or backend once, `auto` stays silent about it, and a refused request is logged once in both; nothing here is fatal, and any other value stops the title with an error naming the variable |
 | `APS5_JOB_AFFINITY` | presence | `core/libs/prx/libkernel/Pthread/src/Thread.cpp` |  | on Windows, pins the title's job worker threads to the efficiency cores of a hybrid CPU |
 | `APS5_JOB_AFFINITY_MASK` | integer | `core/libs/prx/libkernel/Pthread/src/Thread.cpp` |  | on Windows, hex core mask that job worker threads are pinned to |
 | `APS5_MIMALLOC` | presence | `core/libs/prx/libkernel/System/src/MimallocMacOs.cpp` |  | makes the process allocate through mimalloc instead of the system allocator: on Windows the entry stub (`core/relinker/elfpatcher/src/windows/WindowsEntryStubBuilder.cpp`) loads `mimalloc.dll`, on macOS libkernel restarts the title with `libmimalloc.dylib` in `DYLD_INSERT_LIBRARIES` |

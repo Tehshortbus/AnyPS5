@@ -306,6 +306,9 @@ set(agcDriverSources
         ${CMAKE_CURRENT_SOURCE_DIR}/Execution/src/ShaderMemory.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Execution/src/BdaFeatures.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Execution/src/SubgroupClock.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Execution/src/HostReport.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Execution/src/HostReportSources.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Execution/src/HostReportVulkan.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Execution/src/ShaderDeviceProfile.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Execution/src/Pm4.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Execution/src/SubmissionCapture.cpp
@@ -443,6 +446,19 @@ if(BUILD_TESTING)
     add_test(NAME agc_driver_unsupported_diagnostics COMMAND agc_driver_unsupported_diagnostics_tests)
     if(WIN32)
         set_tests_properties(agc_driver_unsupported_diagnostics PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libSceAgcDriver>")
+    endif()
+
+    add_test_executable(agc_driver_pipeline_profile_tests tests/DrawPipelineProfile.cpp)
+    target_include_directories(agc_driver_pipeline_profile_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(agc_driver_pipeline_profile_tests PRIVATE libSceAgcDriver)
+    set_target_properties(agc_driver_pipeline_profile_tests PROPERTIES CXX_EXTENSIONS OFF)
+    configure_windows_unwind(agc_driver_pipeline_profile_tests)
+    add_test(NAME agc_driver_pipeline_profile COMMAND agc_driver_pipeline_profile_tests)
+    set_tests_properties(agc_driver_pipeline_profile PROPERTIES TIMEOUT 20
+        ENVIRONMENT "APS5_PIPELINE_STATS=1;APS5_PIPELINED_DRAWS=8")
+    if(WIN32)
+        set_tests_properties(agc_driver_pipeline_profile PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libSceAgcDriver>")
     endif()
 
@@ -1009,6 +1025,43 @@ configure_windows_unwind(agc_subgroup_clock_tests)
 if(BUILD_TESTING)
     set_target_properties(agc_subgroup_clock_tests PROPERTIES EXCLUDE_FROM_ALL OFF)
     add_test(NAME agc_subgroup_clock COMMAND agc_subgroup_clock_tests)
+endif()
+
+add_test_executable(agc_host_report_tests EXCLUDE_FROM_ALL
+        tests/HostReport.cpp
+        Execution/src/HostReport.cpp
+)
+target_include_directories(agc_host_report_tests PRIVATE ${LIBS_INCLUDE_DIR})
+set_target_properties(agc_host_report_tests PROPERTIES CXX_EXTENSIONS OFF)
+configure_windows_unwind(agc_host_report_tests)
+if(BUILD_TESTING)
+    set_target_properties(agc_host_report_tests PROPERTIES EXCLUDE_FROM_ALL OFF)
+    add_test(NAME agc_host_report COMMAND agc_host_report_tests)
+    set_tests_properties(agc_host_report PROPERTIES TIMEOUT 20)
+    if(MINGW)
+        target_link_libraries(agc_host_report_tests PRIVATE libc)
+        set_tests_properties(agc_host_report PROPERTIES ENVIRONMENT_MODIFICATION
+                "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+endif()
+
+add_test_executable(agc_host_report_vulkan_tests EXCLUDE_FROM_ALL
+        tests/HostReportVulkan.cpp
+        Execution/src/HostReportVulkan.cpp
+        Execution/src/HostReport.cpp
+)
+target_include_directories(agc_host_report_vulkan_tests PRIVATE ${LIBS_INCLUDE_DIR} ${ANYPS5_VULKAN_HEADERS_INCLUDE_DIR})
+set_target_properties(agc_host_report_vulkan_tests PROPERTIES CXX_EXTENSIONS OFF)
+configure_windows_unwind(agc_host_report_vulkan_tests)
+if(BUILD_TESTING)
+    set_target_properties(agc_host_report_vulkan_tests PROPERTIES EXCLUDE_FROM_ALL OFF)
+    add_test(NAME agc_host_report_vulkan COMMAND agc_host_report_vulkan_tests)
+    set_tests_properties(agc_host_report_vulkan PROPERTIES TIMEOUT 20)
+    if(MINGW)
+        target_link_libraries(agc_host_report_vulkan_tests PRIVATE libc)
+        set_tests_properties(agc_host_report_vulkan PROPERTIES ENVIRONMENT_MODIFICATION
+                "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
 endif()
 
 add_test_executable(agc_tessellation_factor_ring_tests EXCLUDE_FROM_ALL
